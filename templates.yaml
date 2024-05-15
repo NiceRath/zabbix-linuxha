@@ -1,0 +1,147 @@
+zabbix_export:
+  version: '6.4'
+  template_groups:
+    - uuid: 7df96b18c230490a9a0a9e2307226338
+      name: Templates
+  templates:
+    - uuid: b2be2450505643449c980a187b997596
+      template: 'Template LinuxHA'
+      name: 'Template LinuxHA'
+      groups:
+        - name: Templates
+      items:
+        - uuid: 5804ad99d05a433f8d35f6046efed158
+          name: 'LinuxHA CoroSync Member Count'
+          key: 'linuxha[members]'
+          delay: 15m
+          history: 7d
+          trends: '0'
+          units: members
+          description: 'corosync-cmapctl runtime.members.*.status'
+          tags:
+            - tag: Application
+              value: CoroSync
+        - uuid: 1dcba89bc61848f580de8f0379e02f24
+          name: 'LinuxHA CoroSync Active Member Count'
+          key: 'linuxha[members_active]'
+          delay: 15m
+          history: 7d
+          trends: '0'
+          units: members
+          description: 'corosync-cmapctl runtime.members.*.status => joined'
+          tags:
+            - tag: Application
+              value: CoroSync
+        - uuid: b365d9355c5a4ad6a91aef5d5e4a6f2f
+          name: 'LinuxHA CoroSync Quorate'
+          key: 'linuxha[quorum]'
+          delay: 15m
+          history: 7d
+          trends: '0'
+          description: |
+            corosync-quorumtool -s
+            Quorate == Yes
+          valuemap:
+            name: Yes-No
+          tags:
+            - tag: Application
+              value: CoroSync
+          triggers:
+            - uuid: 4c5622b1c59343be891c121b01c8f915
+              expression: 'last(/Template LinuxHA/linuxha[quorum])<>1'
+              name: 'LinuxHA Quorum - not Quorate'
+              priority: HIGH
+        - uuid: c95cf0a9ff7641e3a6bd8c1b3c873c44
+          name: 'LinuxHA CoroSync all expected Quorum Votes'
+          key: 'linuxha[votes]'
+          delay: 15m
+          history: 7d
+          trends: '0'
+          description: |
+            corosync-quorumtool -s
+            Expected votes == Total votes
+          valuemap:
+            name: Yes-No
+          tags:
+            - tag: Application
+              value: CoroSync
+          triggers:
+            - uuid: 7e061e6553a44bd2ac4f6eee64087353
+              expression: 'last(/Template LinuxHA/linuxha[votes])<>1'
+              name: 'LinuxHA Quorum - missing votes'
+              priority: AVERAGE
+      discovery_rules:
+        - uuid: 6dd82e9e3951466d96bcfa0abb817b97
+          name: 'LinuxHA Resource Discovery'
+          key: 'linuxha[discover]'
+          delay: 1h
+          lifetime: 3d
+          item_prototypes:
+            - uuid: db14c37660c04866805eac9f90e7d9e1
+              name: 'LinuxHA Status of resource ''{#LINHA_RES}'''
+              key: 'linuxha[resource,{#LINHA_RES}]'
+              history: 7d
+              trends: '0'
+              valuemap:
+                name: Online
+              tags:
+                - tag: Application
+                  value: Pacemaker
+              trigger_prototypes:
+                - uuid: 20203aa6a79f4bc783c8f3c3c2d6ec24
+                  expression: 'last(/Template LinuxHA/linuxha[resource,{#LINHA_RES}])=0'
+                  name: 'LinuxHA resource ''{#LINHA_RES}'' IS UNAVAILABLE (1min)'
+                  priority: AVERAGE
+                  dependencies:
+                    - name: 'LinuxHA resource ''{#LINHA_RES}'' IS UNAVAILABLE (2min)'
+                      expression: 'max(/Template LinuxHA/linuxha[resource,{#LINHA_RES}],2m)=0'
+                    - name: 'LinuxHA resource ''{#LINHA_RES}'' IS UNAVAILABLE (3min)'
+                      expression: 'max(/Template LinuxHA/linuxha[resource,{#LINHA_RES}],3m)=0'
+                - uuid: 58bc87e73f2b4b90a6377b00beefbf51
+                  expression: 'max(/Template LinuxHA/linuxha[resource,{#LINHA_RES}],2m)=0'
+                  name: 'LinuxHA resource ''{#LINHA_RES}'' IS UNAVAILABLE (2min)'
+                  priority: HIGH
+                  dependencies:
+                    - name: 'LinuxHA resource ''{#LINHA_RES}'' IS UNAVAILABLE (3min)'
+                      expression: 'max(/Template LinuxHA/linuxha[resource,{#LINHA_RES}],3m)=0'
+                - uuid: a9fbe3d02d9d4c969feea955333126ee
+                  expression: 'max(/Template LinuxHA/linuxha[resource,{#LINHA_RES}],3m)=0'
+                  name: 'LinuxHA resource ''{#LINHA_RES}'' IS UNAVAILABLE (3min)'
+                  priority: DISASTER
+            - uuid: b497868ca5b847aaa3051297ab1585e5
+              name: 'LinuxHA resource ''{#LINHA_RES}'' node active'
+              key: 'linuxha[resource_active,{#LINHA_RES}]'
+              history: 7d
+              trends: '0'
+              valuemap:
+                name: Active
+              tags:
+                - tag: Application
+                  value: Pacemaker
+      valuemaps:
+        - uuid: 48f6db9230b9461e82b81691236089ef
+          name: Active
+          mappings:
+            - value: '0'
+              newvalue: Standby
+            - value: '1'
+              newvalue: Active
+        - uuid: 7cd0a42af9ab4ade9646a61b6831e53c
+          name: Online
+          mappings:
+            - value: '0'
+              newvalue: Offline
+            - value: '1'
+              newvalue: Online
+        - uuid: 8815939110a44d26ae92c9930140a2ec
+          name: Yes-No
+          mappings:
+            - value: '0'
+              newvalue: 'No'
+            - value: '1'
+              newvalue: 'Yes'
+  triggers:
+    - uuid: 447166e9c44c44c8937d487079ba1c3a
+      expression: 'last(/Template LinuxHA/linuxha[members])>last(/Template LinuxHA/linuxha[members_active])'
+      name: 'LinuxHA CoroSync - not all Members are Online'
+      priority: HIGH

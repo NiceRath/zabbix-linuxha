@@ -1,0 +1,7 @@
+Cmnd_Alias ZBXLINUXHA = \
+  /usr/sbin/corosync-cmapctl runtime.members, \
+  /usr/sbin/corosync-quorumtool -s, \
+  /usr/sbin/crm resource status, \
+  /usr/sbin/crm status *
+##
+zabbix ALL = NOPASSWD: ZBXLINUXHA
