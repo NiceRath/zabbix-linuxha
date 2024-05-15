@@ -97,7 +97,7 @@ elif CHECK == 'resource_active':
 elif CHECK == 'quorum':
     for line in STDOUT.split('\n'):
         if line.find('Quorate') != -1:
-            output(1) if line.find('Yes') else output(0)
+            output(1) if line.find('Yes') != -1 else output(0)
             break
 
 elif CHECK == 'votes':
